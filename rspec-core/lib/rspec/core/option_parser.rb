@@ -16,7 +16,9 @@ module RSpec::Core
 
     def parse(source=nil)
       return { :files_or_directories_to_run => [] } if original_args.empty?
-      args = original_args.dup
+      # The long form of an option with an optional argument consumes the
+      # next argument even when it is a file path, the short form does not.
+      args = original_args.map { |arg| arg == '--parallel' ? '-j' : arg }
 
       options = {}
       begin
@@ -88,6 +90,11 @@ module RSpec::Core
             end
           end
           set_fail_fast(options, value)
+        end
+
+        parser.on('-j', '--[no-]parallel [COUNT]', Integer,
+                  'Run the suite in COUNT forked worker processes (default: number of physical CPU cores).') do |count|
+          options[:parallel_workers] = count.nil? ? Parallel.default_worker_count : (count || 1)
         end
 
         parser.on('--failure-exit-code CODE', Integer,

@@ -161,6 +161,13 @@ module RSpec::Core
         end
       end
 
+      it 'excludes parallel options, since order dependencies only show up in a single process' do
+        original_cli_args.concat(%w[-j 4 -j3 --parallel --parallel=2 --no-parallel --order defined])
+        cmd = repro_command_from(%w[ ./spec/unit/1_spec.rb[1:1] ])
+        expect(cmd).to end_with("--seed 1234 --order defined")
+        expect(shell_command.command_for(%w[ ./foo.rb[1:1] ], server)).to include("--no-parallel")
+      end
+
       it 'includes original options that `command_for` excludes' do
         original_cli_args << "--format" << "progress"
         expect(shell_command.command_for(%w[ ./foo.rb[1:1] ], server)).to exclude("--format progress")

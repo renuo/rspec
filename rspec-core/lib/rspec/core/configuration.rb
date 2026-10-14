@@ -217,6 +217,88 @@ module RSpec
       add_setting :dry_run
 
       # @macro add_setting
+      # Number of worker processes used to run the suite (default: 1, which
+      # runs the suite sequentially in the current process). The suite is
+      # loaded once and then forked, so every worker is a separate process:
+      # examples running concurrently never share global state. Each worker
+      # runs `before(:suite)` and `after(:suite)` hooks, and gets a
+      # `TEST_ENV_NUMBER` environment variable (`""`, `"2"`, `"3"`...) which
+      # can be used to give every worker its own database.
+      # @return [Integer]
+      add_setting :parallel_workers
+
+      # @macro add_setting
+      # Allows parallel runs to split groups having `before(:context)` or
+      # `after(:context)` hooks across workers (default: `false`).
+      #
+      # A top-level group expected to take longer than a worker's share of the
+      # suite is split into its child groups and parts of its examples, which
+      # run in different workers. By default only groups without context hooks
+      # of their own (global ones are fine) are split, since the context hooks
+      # of a split group run once for each part of it, rather than once. This
+      # is how they run when running only part of a group with
+      # `rspec path/to/spec.rb:42`, so it is safe for most suites and lets
+      # long groups be spread over workers.
+      #
+      # Tag a group with `:parallel_split => false` to always run it in a
+      # single worker.
+      # @return [Boolean]
+      add_setting :parallel_split_groups_with_context_hooks
+
+      # @private
+      DEFAULT_PARALLEL_RUN_TIMES_FILE_PATH = 'tmp/rspec_parallel_run_times.txt'
+
+      # The file in which parallel runs persist the run time of every example,
+      # so that the next parallel runs can hand out the longest groups first
+      # and spread them over workers. Defaults to
+      # `tmp/rspec_parallel_run_times.txt` when the project has a `tmp`
+      # directory and `example_status_persistence_file_path` is not set (in
+      # which case the run times persisted there are used). Set it to `nil` to
+      # not persist run times.
+      #
+      # @overload parallel_run_times_file_path
+      #   @return [String, nil] the file path
+      # @overload parallel_run_times_file_path=(value)
+      #   @param value [String, nil] the file path
+      def parallel_run_times_file_path
+        return @parallel_run_times_file_path if defined?(@parallel_run_times_file_path)
+
+        DEFAULT_PARALLEL_RUN_TIMES_FILE_PATH if !example_status_persistence_file_path && File.directory?('tmp')
+      end
+      attr_writer :parallel_run_times_file_path
+
+      # @return [Integer, nil] the number of the current parallel worker
+      #   (starting at 1), or nil when not running in a parallel worker.
+      attr_accessor :parallel_worker_number
+
+      # Registers a block to run in each parallel worker process after it is
+      # forked, before its `before(:suite)` hooks. The block receives the
+      # worker number. Use it to set up per-worker resources, such as
+      # connecting to a per-worker database.
+      #
+      # @example
+      #   RSpec.configure do |config|
+      #     config.parallel_worker_setup do |worker_number|
+      #       SimpleCov.command_name "rspec-#{worker_number}"
+      #     end
+      #   end
+      def parallel_worker_setup(&block)
+        parallel_worker_hooks(:setup) << block
+      end
+
+      # Registers a block to run in each parallel worker process after its
+      # `after(:suite)` hooks, right before the worker exits. The block
+      # receives the worker number.
+      def parallel_worker_teardown(&block)
+        parallel_worker_hooks(:teardown) << block
+      end
+
+      # @private
+      def parallel_worker_hooks(type)
+        (@parallel_worker_hooks ||= { :setup => [], :teardown => [] })[type]
+      end
+
+      # @macro add_setting
       # The exit code to return if there are any failures (default: 1).
       # @return [Integer]
       add_setting :failure_exit_code
@@ -962,6 +1044,9 @@ module RSpec
           end
       end
 
+      # @private
+      attr_writer :reporter
+
       # @api private
       #
       # Defaults `profile_examples` to 10 examples when `@profile_examples` is
@@ -1463,21 +1548,31 @@ module RSpec
       # @private
       #
       # Used internally to extend the singleton class of a single example's
-      # example group instance with modules using `include` and/or `extend`.
-      def configure_example(example, example_hooks)
-        example_hooks.register_global_singleton_context_hooks(example, hooks)
+      # example group instance with modules using `include` and/or `extend`,
+      # and to register the context hooks matching only that example.
+      #
+      # @return [Class, nil] the singleton example group of the example, or
+      #   nil when the example needs no modules or hooks beyond its group's,
+      #   in which case no singleton class is created at all.
+      def configure_example(example, _example_hooks=nil)
+        modules = @include_modules.items_for(example.metadata)
+        return nil if modules.all? { |mod| example.example_group < mod } &&
+                      !hooks.singleton_context_hooks_for?(example)
+
         singleton_group = example.example_group_instance.singleton_class
+        singleton_group.hooks.register_global_singleton_context_hooks(example, hooks)
 
         # We replace the metadata so that SharedExampleGroupModule#included
         # has access to the example's metadata[:location].
         singleton_group.with_replaced_metadata(example.metadata) do
-          modules = @include_modules.items_for(example.metadata)
           modules.each do |mod|
-            safe_include(mod, example.example_group_instance.singleton_class)
+            safe_include(mod, singleton_group)
           end
 
           MemoizedHelpers.define_helpers_on(singleton_group) unless modules.empty?
         end
+
+        singleton_group
       end
 
       # @private

@@ -14,6 +14,7 @@ module RSpec::Core
     def initialize(configuration)
       @configuration = configuration
       @listeners = Hash.new { |h, k| h[k] = Set.new }
+      @listener_lists = {}
       @examples = []
       @failed_examples = []
       @pending_examples = []
@@ -38,6 +39,7 @@ module RSpec::Core
       notifications.each do |notification|
         @listeners[notification.to_sym] << listener
       end
+      @listener_lists.clear
       true
     end
 
@@ -50,7 +52,7 @@ module RSpec::Core
 
     # @private
     def registered_listeners(notification)
-      @listeners[notification].to_a
+      @listener_lists[notification] ||= @listeners[notification].to_a.freeze
     end
 
     # @overload report(count, &block)
@@ -216,6 +218,15 @@ module RSpec::Core
       message(msg)
       close
       exit!(exit_status)
+    end
+
+    # @private
+    # Overrides the time profiled for a top-level group, for groups run in
+    # another process.
+    def record_group_run_time(group, run_time)
+      return unless @profiler&.example_groups&.key?(group)
+
+      @profiler.example_groups[group][:total_time] = run_time
     end
 
     # @private
