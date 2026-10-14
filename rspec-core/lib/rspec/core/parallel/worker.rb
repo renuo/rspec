@@ -77,6 +77,7 @@ module RSpec
 
           begin
             RailsIntegration.after_fork(@number)
+            SimpleCovIntegration.after_fork
             configuration.parallel_worker_hooks(:setup).each { |hook| hook.call(@number) }
             configuration.with_suite_hooks { process_commands(registry, reporter, commands) }
             configuration.parallel_worker_hooks(:teardown).each { |hook| hook.call(@number) }

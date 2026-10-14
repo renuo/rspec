@@ -324,6 +324,9 @@ RSpec.configure do |config|
 end
 ```
 
+Workers only save their coverage: the main process, which exits last, merges
+it, writes the report and checks the minimum coverage.
+
 To spread long groups over several workers, a group expected to take longer
 than a worker's share of the suite is split into its child groups and parts of
 its examples, unless it has `before(:context)`/`after(:context)` hooks of its

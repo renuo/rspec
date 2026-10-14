@@ -27,7 +27,10 @@ module RSpec
           return nil
         end
 
-        %w[channel exception_serializer rails_integration registry scheduler worker_reporter worker coordinator].each do |file|
+        %w[
+          channel exception_serializer rails_integration simplecov_integration registry scheduler worker_reporter
+          worker coordinator
+        ].each do |file|
           RSpec::Support.require_rspec_core "parallel/#{file}"
         end
 
