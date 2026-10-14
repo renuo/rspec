@@ -4,9 +4,9 @@
 Enhancements:
 
 * Add `--parallel [COUNT]` (`-j`) to run the suite in forked worker processes,
-  using all CPU cores. Workers are fed top-level groups (or parts of long
-  groups) longest first, and report back to the main process so formatters and
-  exit codes behave as in a sequential run. Adds the `parallel_workers`,
+  one per physical CPU core by default. Workers are fed top-level groups (or
+  parts of long groups) longest first, and report back to the main process so
+  formatters and exit codes behave as in a sequential run. Adds the `parallel_workers`,
   `parallel_split_groups_with_context_hooks`, `parallel_worker_setup` and
   `parallel_worker_teardown` configuration options. (Alessandro Rodi, rspec/rspec#7)
 * Reduce the overhead of running an example by only creating the example's

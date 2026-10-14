@@ -2,11 +2,12 @@ Feature: `--parallel` option
 
   Use the `--parallel` option (or `-j`) to run your suite in several worker
   processes, using all the cores of your machine. RSpec loads your suite once,
-  then forks one worker per CPU (or the number of workers you give, for example
-  `--parallel 4` or `-j4`). Groups are handed out to the workers as they become
-  available, longest first, and the results are reported exactly like a
-  sequential run: formatters, `--only-failures`, `--profile`, `--fail-fast` and
-  exit codes all work as usual, and the output of each group is kept together.
+  then forks one worker per physical CPU core (or the number of workers you
+  give, for example `--parallel 4` or `-j4`). Groups are handed out to the
+  workers as they become available, longest first, and the results are
+  reported exactly like a sequential run: formatters, `--only-failures`,
+  `--profile`, `--fail-fast` and exit codes all work as usual, and the output
+  of each group is kept together.
 
   Every worker is a separate process, so examples running at the same time
   never share global state such as constants, stubs or database connections.

@@ -270,7 +270,7 @@ Run `rspec --help` to see the complete list.
 `rspec --parallel` (or `-j`) runs your suite on all the cores of your machine:
 
 ```
-$ rspec --parallel      # one worker process per CPU
+$ rspec --parallel      # one worker process per physical CPU core
 $ rspec --parallel 4    # four worker processes
 ```
 

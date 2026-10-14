@@ -60,9 +60,24 @@ module RSpec
           RUBY_ENGINE == 'ruby' && !RSpec::Support::OS.windows?
       end
 
+      # One worker per physical core: workers sharing a core through
+      # simultaneous multithreading (hyper-threading) mostly slow each other
+      # down, using more CPU time and memory for the same wall time.
       def self.default_worker_count
         require 'etc'
-        Etc.nprocessors
+        [Etc.nprocessors, physical_core_count].compact.min
+      end
+
+      def self.physical_core_count
+        siblings = Dir['/sys/devices/system/cpu/cpu[0-9]*/topology/thread_siblings_list']
+        return siblings.map { |path| File.read(path).strip }.uniq.size unless siblings.empty?
+
+        return nil unless RbConfig::CONFIG['host_os'] =~ /darwin/
+
+        count = IO.popen(%w[sysctl -n hw.physicalcpu], :err => File::NULL, &:read).to_i
+        count if count > 0
+      rescue SystemCallError, IOError
+        nil
       end
     end
   end
