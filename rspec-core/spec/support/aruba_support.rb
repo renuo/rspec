@@ -61,3 +61,9 @@ RSpec.configure do |c|
     meta[:slow] = true
   end
 end
+
+RSpec.configure do |c|
+  c.parallel_worker_setup do
+    Aruba.configure { |aruba| aruba.working_directory = "tmp/aruba#{ENV.fetch('TEST_ENV_NUMBER')}" }
+  end
+end

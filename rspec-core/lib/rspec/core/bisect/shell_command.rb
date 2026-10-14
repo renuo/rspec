@@ -12,7 +12,7 @@ module RSpec
         attr_reader :original_cli_args
 
         def initialize(original_cli_args)
-          @original_cli_args = original_cli_args.reject { |arg| arg.start_with?("--bisect") }
+          @original_cli_args = without_parallel_options(original_cli_args.reject { |arg| arg.start_with?("--bisect") })
         end
 
         def command_for(locations, server)
@@ -25,6 +25,7 @@ module RSpec
           parts << "--drb-port" << server.drb_port
 
           parts.concat(reusable_cli_options)
+          parts << "--no-parallel"
           parts.concat(locations.map { |l| escape(l) })
 
           parts.join(" ")
@@ -62,6 +63,21 @@ module RSpec
         end
 
       private
+
+        PARALLEL_OPTION = /\A(-j\d*|--(no-)?parallel(=\d+)?)\z/
+
+        # Order dependencies can only be reproduced in a single process.
+        def without_parallel_options(args)
+          kept = []
+          count_may_follow = false
+          args.each do |arg|
+            next count_may_follow = false if count_may_follow && arg =~ /\A\d+\z/
+
+            count_may_follow = %w[-j --parallel].include?(arg)
+            kept << arg unless arg =~ PARALLEL_OPTION
+          end
+          kept
+        end
 
         include RSpec::Core::ShellEscape
 

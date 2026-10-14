@@ -375,6 +375,31 @@ module RSpec::Core
       end
     end
 
+    describe '--parallel' do
+      it 'defaults to the number of processors' do
+        allow(Parallel).to receive(:default_worker_count).and_return(7)
+        expect(Parser.parse(%w[--parallel])[:parallel_workers]).to eq 7
+        expect(Parser.parse(%w[-j])[:parallel_workers]).to eq 7
+      end
+
+      it 'sets the number of workers' do
+        expect(Parser.parse(%w[--parallel 3])[:parallel_workers]).to eq 3
+        expect(Parser.parse(%w[--parallel=3])[:parallel_workers]).to eq 3
+        expect(Parser.parse(%w[-j3])[:parallel_workers]).to eq 3
+        expect(Parser.parse(%w[-j 3])[:parallel_workers]).to eq 3
+      end
+
+      it 'does not mistake a following path for the number of workers' do
+        allow(Parallel).to receive(:default_worker_count).and_return(7)
+        options = Parser.parse(%w[--parallel spec/foo_spec.rb])
+        expect(options).to include(:parallel_workers => 7, :files_or_directories_to_run => %w[spec/foo_spec.rb])
+      end
+
+      it 'can be turned off' do
+        expect(Parser.parse(%w[--no-parallel])[:parallel_workers]).to eq 1
+      end
+    end
+
     describe '--fail-fast' do
       it 'warns when a non-integer is specified as fail count' do
         expect_warning_without_call_site a_string_including("--fail-fast", "three")

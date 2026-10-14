@@ -131,6 +131,7 @@ module RSpec
         def initialize
           super
           @applicable_keys   = Set.new
+          @applicable_keys_list = []
           @proc_keys         = Set.new
           @memoized_lookups  = Hash.new do |hash, applicable_metadata|
             hash[applicable_metadata] = find_items_for(applicable_metadata)
@@ -163,9 +164,9 @@ module RSpec
           # that are not. For each set, this method for the first group in the set is
           # still an `O(N)` calculation, but all subsequent groups in the set will be
           # constant time lookups when they call this method.
-          applicable_metadata = metadata.slice(*@applicable_keys)
+          applicable_metadata = metadata.slice(*@applicable_keys_list)
 
-          if applicable_metadata.any? { |k, _| @proc_keys.include?(k) }
+          if !@proc_keys.empty? && applicable_metadata.any? { |k, _| @proc_keys.include?(k) }
             # It's unsafe to memoize lookups involving procs (since they can
             # be non-deterministic), so we skip the memoization in this case.
             find_items_for(applicable_metadata)
@@ -178,6 +179,7 @@ module RSpec
 
         def reconstruct_caches
           @applicable_keys.clear
+          @applicable_keys_list = []
           @proc_keys.clear
           @items_and_filters.each do |_item, metadata|
             handle_mutation(metadata)
@@ -186,6 +188,7 @@ module RSpec
 
         def handle_mutation(metadata)
           @applicable_keys.merge(metadata.keys)
+          @applicable_keys_list = @applicable_keys.to_a
           @proc_keys.merge(proc_keys_from metadata)
           @memoized_lookups.clear
         end

@@ -204,7 +204,7 @@ module RSpec
         # want to keep it that way. It's easier to just assign it here.
         @metadata[:last_run_status] = config.last_run_statuses[id]
 
-        @example_group_instance = @exception = nil
+        @example_group_instance = @exception = @singleton_group = nil
         @clock = RSpec::Core::Time
         @reporter = RSpec::Core::NullReporter
       end
@@ -239,7 +239,7 @@ module RSpec
       def run(example_group_instance, reporter)
         @example_group_instance = example_group_instance
         @reporter = reporter
-        RSpec.configuration.configure_example(self, hooks)
+        @singleton_group = RSpec.configuration.configure_example(self)
         RSpec.current_example = self
 
         start(reporter)
@@ -276,7 +276,7 @@ module RSpec
         rescue Support::AllExceptionsExceptOnesWeMustNotRescue => e
           set_exception(e)
         ensure
-          @example_group_instance = nil # if you love something... let it go
+          @example_group_instance = @singleton_group = nil # if you love something... let it go
         end
 
         finish(reporter)
@@ -396,6 +396,13 @@ module RSpec
 
       # @private
       #
+      # Sets the outcome of running this example in another process.
+      def restore_exception(exception)
+        @exception = exception
+      end
+
+      # @private
+      #
       # Used internally to set an exception in an after hook, which
       # captures the exception but doesn't raise it.
       def set_exception(exception)
@@ -449,7 +456,7 @@ module RSpec
     private
 
       def hooks
-        example_group_instance.singleton_class.hooks
+        (@singleton_group || @example_group_class).hooks
       end
 
       def with_around_example_hooks
@@ -495,11 +502,15 @@ module RSpec
       end
 
       def with_around_and_singleton_context_hooks
-        singleton_context_hooks_host = example_group_instance.singleton_class
-        singleton_context_hooks_host.run_before_context_hooks(example_group_instance)
-        with_around_example_hooks { yield }
-      ensure
-        singleton_context_hooks_host.run_after_context_hooks(example_group_instance)
+        singleton_context_hooks_host = @singleton_group
+        return with_around_example_hooks { yield } unless singleton_context_hooks_host
+
+        begin
+          singleton_context_hooks_host.run_before_context_hooks(example_group_instance)
+          with_around_example_hooks { yield }
+        ensure
+          singleton_context_hooks_host.run_after_context_hooks(example_group_instance)
+        end
       end
 
       def run_after_example

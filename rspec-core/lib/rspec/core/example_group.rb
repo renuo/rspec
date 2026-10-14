@@ -685,9 +685,14 @@ module RSpec
       end
 
       # @private
+      # Instance variables which belong to a single example group instance and
+      # must never be shared from `before(:context)` hooks with examples.
+      INSTANCE_SPECIFIC_IVARS = [:@__inspect_output, :@__memoized].freeze
+
+      # @private
       def self.each_instance_variable_for_example(group)
         group.instance_variables.each do |ivar|
-          yield ivar unless ivar == :@__inspect_output
+          yield ivar unless INSTANCE_SPECIFIC_IVARS.include?(ivar)
         end
       end
 

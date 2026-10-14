@@ -1,6 +1,20 @@
 ### Development
 [Full Changelog](https://github.com/rspec/rspec/compare/rspec-core-v3.13.6...main)
 
+Enhancements:
+
+* Add `--parallel [COUNT]` (`-j`) to run the suite in forked worker processes,
+  one per physical CPU core by default. Workers are fed top-level groups (or
+  parts of long groups) longest first, using the run times saved by the
+  previous run, and report back to the main process so formatters and exit
+  codes behave as in a sequential run. In Rails apps, every worker gets its own test database. Adds
+  the `parallel_workers`, `parallel_split_groups_with_context_hooks`,
+  `parallel_run_times_file_path`, `parallel_worker_setup` and
+  `parallel_worker_teardown` configuration options. (Alessandro Rodi, rspec/rspec#7)
+* Reduce the overhead of running an example by only creating the example's
+  singleton example group when a module or `before(:context)` hook applies to
+  the example only. (Alessandro Rodi)
+
 # 4.0.0.beta1 / 2026-02-18
 
 Breaking Changes:

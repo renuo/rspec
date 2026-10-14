@@ -431,6 +431,29 @@ module RSpec
           process(host, parent_groups, globals, :after,  :context, &:options)
         end
 
+        # Whether any `before(:context)` or `after(:context)` hook, other than
+        # those registered from `globals`, is registered directly on the owner
+        # of these hooks.
+        def context_hooks?(globals)
+          [:before, :after].any? do |position|
+            (all_hooks_for(position, :context) - globals.all_hooks_for(position, :context)).any?
+          end
+        end
+
+        # Whether `register_global_singleton_context_hooks` would register any
+        # hook for the example, when called with these hooks as `globals`.
+        def singleton_context_hooks_for?(example)
+          return false if @before_context_hooks.nil? && @after_context_hooks.nil?
+
+          parent_groups = example.example_group.parent_groups
+          [:before, :after].any? do |position|
+            hooks = matching_hooks_for(position, :context, example)
+            next false if hooks.empty?
+
+            (hooks - parent_groups.flat_map { |group| group.hooks.all_hooks_for(position, :context) }).any?
+          end
+        end
+
         def register_global_singleton_context_hooks(example, globals)
           parent_groups = example.example_group.parent_groups
 

@@ -1,10 +1,14 @@
+require "tmpdir"
+
 RSpec.shared_context "spec files" do
+  # Outside of `spec`, whose files are all loaded by the library wide checks,
+  # possibly while another process runs these specs.
   def failing_spec_filename
-    @failing_spec_filename ||= File.expand_path(File.dirname(__FILE__)) + "/_failing_spec.rb"
+    @failing_spec_filename ||= File.join(Dir.tmpdir, "rspec_core_failing_#{Process.pid}_spec.rb")
   end
 
   def passing_spec_filename
-    @passing_spec_filename ||= File.expand_path(File.dirname(__FILE__)) + "/_passing_spec.rb"
+    @passing_spec_filename ||= File.join(Dir.tmpdir, "rspec_core_passing_#{Process.pid}_spec.rb")
   end
 
   def create_passing_spec_file

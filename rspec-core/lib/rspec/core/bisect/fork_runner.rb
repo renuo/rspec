@@ -87,6 +87,8 @@ module RSpec
               c.reset_reporter
               c.output_stream = @spec_output
               c.error_stream = @spec_output
+              # Order dependencies can only be reproduced in a single process.
+              c.force(:parallel_workers => 1)
             end
           end
 

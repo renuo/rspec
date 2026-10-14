@@ -112,7 +112,10 @@ module RSpec
       #   failed.
       def run_specs(example_groups)
         examples_count = @world.example_count(example_groups)
+        parallel_units = Parallel.units_for(@configuration, @world, example_groups)
         examples_passed = @configuration.reporter.report(examples_count) do |reporter|
+          next Parallel.run(@configuration, @world, parallel_units, reporter) if parallel_units
+
           @configuration.with_suite_hooks do
             if examples_count == 0 && @configuration.fail_if_no_examples
               return @configuration.failure_exit_code
